@@ -10,14 +10,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.consumeAsFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,8 +38,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CounterApp() {
     Box(modifier = Modifier.fillMaxSize()) {
-        CounterWithText(modifier = Modifier.align(Alignment.Center))
+//        CounterWithText(modifier = Modifier.align(Alignment.Center))
 //        CounterWithButton(modifier = Modifier.align(Alignment.Center))
+        CounterWithPresenter(modifier = Modifier.align(Alignment.Center))
     }
 }
 
@@ -117,6 +125,7 @@ fun CounterWithButton(
     }
 }
 
+@Stable
 @Composable
 fun Button(a: Int, onClick: () -> Unit) {
     Text(
@@ -126,4 +135,71 @@ fun Button(a: Int, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(8.dp)
     )
+}
+
+@Composable
+fun CounterWithPresenter(modifier: Modifier = Modifier) {
+
+    val channel = remember { Channel<CounterAction>() }
+    val flow = remember(channel) { channel.consumeAsFlow() }
+
+    // counterPresenter 方式把 a 和 b 组合起来，而 a 或 b 任一变化都会导致 state 的变化，进而扩大重组范围，导致性能降低
+    val state = counterPresenter(flow)
+
+    Row(modifier = modifier) {
+
+        Button(a = state.a) { channel.trySend(CounterAction.IncrementA) }
+
+        Text(
+            text = "+",
+            fontSize = 24.sp,
+            modifier = Modifier.padding(8.dp)
+        )
+
+        Button(a = state.b) { channel.trySend(CounterAction.IncrementB) }
+
+        Text(
+            text = "=",
+            fontSize = 24.sp,
+            modifier = Modifier.padding(8.dp)
+        )
+
+        Text(
+            text = state.sum.toString(),
+            fontSize = 24.sp,
+            modifier = Modifier.padding(8.dp)
+        )
+    }
+}
+
+sealed interface CounterAction {
+
+    object IncrementA : CounterAction
+
+    object IncrementB : CounterAction
+}
+
+@Immutable
+data class CounterState(val a: Int, val b: Int) {
+    val sum get() = a + b
+}
+
+@Composable
+fun counterPresenter(
+    actions: Flow<CounterAction>
+): CounterState {
+
+    var a by remember { mutableStateOf(0) }
+    var b by remember { mutableStateOf(0) }
+
+    LaunchedEffect(actions) {
+        actions.collect { action ->
+            when (action) {
+                is CounterAction.IncrementA -> a++
+                is CounterAction.IncrementB -> b++
+            }
+        }
+    }
+
+    return CounterState(a, b)
 }
