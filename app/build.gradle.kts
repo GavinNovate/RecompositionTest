@@ -60,6 +60,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-core:1.2.1")
     implementation("androidx.compose.material:material-icons-extended:1.2.1")
     implementation("androidx.compose.ui:ui-tooling-preview:1.2.1")
+    implementation(files("build/intermediates/merged_java_res/debug/base.jar"))
     debugImplementation("androidx.compose.ui:ui-tooling:1.2.1")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.2.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.2.1")

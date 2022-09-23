@@ -31,8 +31,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CounterApp() {
     Box(modifier = Modifier.fillMaxSize()) {
-        CounterWithText(modifier = Modifier.align(Alignment.Center))
-//        CounterWithButton(modifier = Modifier.align(Alignment.Center))
+//        CounterWithText(modifier = Modifier.align(Alignment.Center))
+        CounterWithButton(modifier = Modifier.align(Alignment.Center))
     }
 }
 
@@ -61,6 +61,7 @@ fun CounterWithText(
         )
 
         // TextB
+        // 这里的 modifier 会生成新的实例，导致 Text 发生重组
         Text(
             text = b.toString(),
             fontSize = 24.sp,
@@ -101,7 +102,18 @@ fun CounterWithButton(
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(a = b) { b++ }
+        // 这里的 onClickB 不会产生新的实例，应该是 Compose 编译器插件自动插入 remember 了（BennyHuo说的）
+        // TODO 2022/9/23: 翻一下字节码看看生成的代码是什么样的
+        val onClickB: () -> Unit = { b++ }
+
+        // 写成这样就会生成新的实例
+        /*val onClickB: () -> Unit = object : () -> Unit {
+            override fun invoke() {
+                b++
+            }
+        }*/
+
+        Button(a = b, onClickB)
 
         Text(
             text = "=",
