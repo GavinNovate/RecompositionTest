@@ -12,6 +12,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,9 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.consumeAsFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,17 +55,23 @@ fun Button(a: Int, onClick: () -> Unit) {
 @Composable
 fun CounterWithPresenter(modifier: Modifier = Modifier) {
 
-    val channel = remember { Channel<CounterAction>() }
-    val flow = remember(channel) { channel.consumeAsFlow() }
+    val (state, actions) = rememberViewModel<CounterState, CounterActions>(viewState = remember {
+        CounterState(0, 0)
+    }) {
+        object : CounterActions {
+            override fun incrementA() {
+                value = value.copy(a = value.a + 1)
+            }
 
-    // counterPresenter 方式把 a 和 b 组合起来，而 a 或 b 任一变化都会导致 state 的变化，进而扩大重组范围，导致性能降低
-    val state = counterPresenter(flow)
-    val onClickA: () -> Unit = remember { { channel.trySend(CounterAction.IncrementA) } }
-    val onClickB: () -> Unit = remember { { channel.trySend(CounterAction.IncrementB) } }
+            override fun incrementB() {
+                value = value.copy(b = value.b + 1)
+            }
+        }
+    }
 
     Row(modifier = modifier) {
 
-        Button(a = state.a, onClick = onClickA)
+        Button(a = state.a, onClick = actions::incrementA)
 
         Text(
             text = "+",
@@ -74,7 +79,7 @@ fun CounterWithPresenter(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(a = state.b, onClick = onClickB)
+        Button(a = state.b, onClick = actions::incrementB)
 
         Text(
             text = "=",
@@ -98,7 +103,7 @@ sealed interface CounterAction {
 }
 
 @Immutable
-data class CounterState(val a: Int, val b: Int) {
+data class CounterState(val a: Int, val b: Int) : ViewState {
     val sum get() = a + b
 }
 
@@ -122,28 +127,47 @@ fun counterPresenter(
     return CounterState(a, b)
 }
 
-interface CounterActions {
+interface CounterActions : ViewActions {
     fun incrementA()
 
     fun incrementB()
 }
 
-class CounterViewModel(val state: CounterState, val actions: CounterActions)
+data class CounterViewModel(val state: CounterState, val actions: CounterActions)
 
 @Composable
 fun rememberCounterViewModel(a: Int, b: Int): CounterViewModel {
     var _a by remember(a) { mutableStateOf(a) }
     var _b by remember(b) { mutableStateOf(b) }
+    var state by remember(a, b) { mutableStateOf(CounterState(a, b)) }
     val actions: CounterActions = remember {
         object : CounterActions {
             override fun incrementA() {
-                _a++
+                state = state.copy(a = state.a + 1)
             }
 
             override fun incrementB() {
-                _b++
+                state = state.copy(b = state.b + 1)
             }
         }
     }
-    return CounterViewModel(CounterState(_a, _b), actions)
+    return CounterViewModel(state, actions)
 }
+
+@Composable
+fun <VS : ViewState, VA : ViewActions> rememberViewModel(
+    viewState: VS,
+    viewActions: MutableState<VS>.() -> VA
+): ViewModel<VS, VA> {
+    val state = remember(viewState) { mutableStateOf(viewState) }
+    val actions = remember {
+        state.viewActions()
+    }
+    return ViewModel(state.value, actions)
+}
+
+interface ViewState
+
+interface ViewActions
+
+data class ViewModel<VS : ViewState, VA : ViewActions>(val state: VS, val actions: VA)
