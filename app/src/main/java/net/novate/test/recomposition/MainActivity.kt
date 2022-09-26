@@ -36,7 +36,7 @@ fun CounterApp() {
     }
 }
 
-@Composable
+/*@Composable
 fun CounterWithText(
     modifier: Modifier = Modifier,
 ) {
@@ -82,7 +82,7 @@ fun CounterWithText(
             modifier = Modifier.padding(8.dp)
         )
     }
-}
+}*/
 
 @Composable
 fun CounterWithButton(
@@ -103,10 +103,11 @@ fun CounterWithButton(
         )
 
         // 这里的 onClickB 不会产生新的实例，应该是 Compose 编译器插件自动插入 remember 了（BennyHuo说的）
-        // TODO 2022/9/23: 翻一下字节码看看生成的代码是什么样的
+        // 通过查看编译后的字节码，会发现 onClickB 确实会被编译器自动插入的 remember 代码记住
         val onClickB: () -> Unit = { b++ }
 
         // 写成这样就会生成新的实例
+        // 通过查看编译后的字节码，会发现这样写的 onClickB 不会被编译器自动插入的 remember，这就导致每次运行代码都会产生新的实例
         /*val onClickB: () -> Unit = object : () -> Unit {
             override fun invoke() {
                 b++
