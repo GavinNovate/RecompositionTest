@@ -16,7 +16,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,90 +37,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CounterApp() {
     Box(modifier = Modifier.fillMaxSize()) {
-//        CounterWithText(modifier = Modifier.align(Alignment.Center))
-//        CounterWithButton(modifier = Modifier.align(Alignment.Center))
         CounterWithPresenter(modifier = Modifier.align(Alignment.Center))
-    }
-}
-
-@Composable
-fun CounterWithText(
-    modifier: Modifier = Modifier,
-) {
-    var a by rememberSaveable { mutableStateOf(0) }
-    var b by rememberSaveable { mutableStateOf(0) }
-
-    Row(modifier = modifier) {
-
-        // TextA: 点击这个组件，改变了 a 的状态，也会导致下面 TextB 组件发生重组，初步判断是由 clickable{ } 导致的
-        Text(
-            text = a.toString(),
-            fontSize = 24.sp,
-            modifier = Modifier
-                .clickable(onClick = { a++ })
-                .padding(8.dp)
-        )
-
-        Text(
-            text = "+",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
-
-        // TextB
-        Text(
-            text = b.toString(),
-            fontSize = 24.sp,
-            modifier = Modifier
-                .clickable(onClick = { b++ })
-                .padding(8.dp)
-        )
-
-        Text(
-            text = "=",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
-
-        Text(
-            text = (a + b).toString(),
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
-    }
-}
-
-@Composable
-fun CounterWithButton(
-    modifier: Modifier = Modifier,
-) {
-    var a by rememberSaveable { mutableStateOf(0) }
-    var b by rememberSaveable { mutableStateOf(0) }
-
-    Row(modifier = modifier) {
-
-        // 把 Text 包装为 Button 单独改变 A 就不会导致 B 重组
-        Button(a = a) { a++ }
-
-        Text(
-            text = "+",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
-
-        Button(a = b) { b++ }
-
-        Text(
-            text = "=",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
-
-        Text(
-            text = (a + b).toString(),
-            fontSize = 24.sp,
-            modifier = Modifier.padding(8.dp)
-        )
     }
 }
 
@@ -145,10 +61,12 @@ fun CounterWithPresenter(modifier: Modifier = Modifier) {
 
     // counterPresenter 方式把 a 和 b 组合起来，而 a 或 b 任一变化都会导致 state 的变化，进而扩大重组范围，导致性能降低
     val state = counterPresenter(flow)
+    val onClickA: () -> Unit = remember { { channel.trySend(CounterAction.IncrementA) } }
+    val onClickB: () -> Unit = remember { { channel.trySend(CounterAction.IncrementB) } }
 
     Row(modifier = modifier) {
 
-        Button(a = state.a) { channel.trySend(CounterAction.IncrementA) }
+        Button(a = state.a, onClick = onClickA)
 
         Text(
             text = "+",
@@ -156,7 +74,7 @@ fun CounterWithPresenter(modifier: Modifier = Modifier) {
             modifier = Modifier.padding(8.dp)
         )
 
-        Button(a = state.b) { channel.trySend(CounterAction.IncrementB) }
+        Button(a = state.b, onClick = onClickB)
 
         Text(
             text = "=",
@@ -202,4 +120,30 @@ fun counterPresenter(
     }
 
     return CounterState(a, b)
+}
+
+interface CounterActions {
+    fun incrementA()
+
+    fun incrementB()
+}
+
+class CounterViewModel(val state: CounterState, val actions: CounterActions)
+
+@Composable
+fun rememberCounterViewModel(a: Int, b: Int): CounterViewModel {
+    var _a by remember(a) { mutableStateOf(a) }
+    var _b by remember(b) { mutableStateOf(b) }
+    val actions: CounterActions = remember {
+        object : CounterActions {
+            override fun incrementA() {
+                _a++
+            }
+
+            override fun incrementB() {
+                _b++
+            }
+        }
+    }
+    return CounterViewModel(CounterState(_a, _b), actions)
 }
