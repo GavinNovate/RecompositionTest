@@ -15,11 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import net.novate.test.recomposition.demo1.CounterDemo1
+import net.novate.test.recomposition.demo3.CounterDemo3
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,7 +32,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun CounterApp() {
     Box(modifier = Modifier.fillMaxSize()) {
-        CounterDemo1(modifier = Modifier.align(Alignment.Center))
+        CounterDemo3(modifier = Modifier.align(Alignment.Center))
     }
 }
 
